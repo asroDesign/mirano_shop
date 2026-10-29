@@ -1,0 +1,12 @@
+node_modules
+.next
+.env
+yarn.lock
+next-env.d.ts
+storage/media/*
+!storage/media/.gitkeep
+drizzle.config.json
+.env.example
+backup.dump
+backup.sql
+ecosystem.config.js

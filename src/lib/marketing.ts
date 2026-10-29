@@ -1,0 +1,112 @@
+import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { db } from "@/db";
+import { carrierRates, carriers, discountCodes, discountUsages, festivals, users, variantScheduledDiscounts } from "@/db/schema";
+import type { DB } from "./types";
+
+export type Festival = typeof festivals.$inferSelect;
+export type Carrier = typeof carriers.$inferSelect;
+
+export async function activeFestivals(tx: DB = db): Promise<Festival[]> {
+  const now = new Date();
+  return tx.select().from(festivals).where(and(eq(festivals.isActive, true), lte(festivals.startsAt, now), gte(festivals.endsAt, now))).orderBy(asc(festivals.endsAt));
+}
+
+/** Best festival for a product (all-products festivals have empty product & category lists). */
+export function festivalFor(fs: Festival[], productId: number, categoryId: number | null): Festival | null {
+  let best: Festival | null = null;
+  for (const f of fs) {
+    const all = f.productIds.length === 0 && f.categoryIds.length === 0;
+    const ok = all || f.productIds.includes(productId) || (categoryId !== null && f.categoryIds.includes(categoryId));
+    if (ok && (!best || f.discountPercent > best.discountPercent)) best = f;
+  }
+  return best;
+}
+
+export type VariantScheduledDiscount = typeof variantScheduledDiscounts.$inferSelect;
+export async function activeVariantDiscounts(tx: DB, variantIds: number[], now = new Date()) {
+  if (!variantIds.length) return new Map<number, VariantScheduledDiscount>();
+  const rows = await tx.select().from(variantScheduledDiscounts).where(and(
+    inArray(variantScheduledDiscounts.variantId, variantIds),
+    eq(variantScheduledDiscounts.isActive, true),
+    lte(variantScheduledDiscounts.startsAt, now),
+    gte(variantScheduledDiscounts.endsAt, now),
+  )).orderBy(asc(variantScheduledDiscounts.variantId), asc(variantScheduledDiscounts.startsAt), asc(variantScheduledDiscounts.id));
+  return new Map(rows.map((row) => [row.variantId, row]));
+}
+
+export async function activeVariantDiscount(tx: DB, variantId: number, now = new Date()) {
+  const discounts = await activeVariantDiscounts(tx, [variantId], now);
+  return discounts.get(variantId) ?? null;
+}
+
+export const applyPct = (price: number, pct: number) => price - Math.round((price * pct) / 100);
+
+/** Largest whole-number discount percentage that keeps the selling price at or above cost. */
+export function safeDiscountPercent(price: number, cost: number, requested: number) {
+  for (let pct = Math.min(90, Math.max(0, Math.floor(requested))); pct >= 0; pct--) {
+    if (applyPct(price, pct) >= cost) return pct;
+  }
+  return 0;
+}
+
+export async function activeCarriers(tx: DB = db) {
+  return tx.select().from(carriers).where(eq(carriers.isActive, true)).orderBy(asc(carriers.sortOrder), asc(carriers.id));
+}
+
+/** Shipping cost for a carrier by destination city and weight (grams). City-specific rate > generic rate > base + per-kg formula. */
+export async function carrierCost(tx: DB, c: Carrier, province: string, city: string, weight: number) {
+  const rates = await tx.select().from(carrierRates).where(eq(carrierRates.carrierId, c.id));
+  const inRange = rates.filter((r) => weight >= r.minWeight && weight <= r.maxWeight);
+  const norm = (s: string | null) => (s ?? "").trim().replace(/ي/g, "ی").replace(/ك/g, "ک");
+  const exactCity = inRange.find((r) => r.city && norm(r.city) === norm(city) && r.province && norm(r.province) === norm(province));
+  const provinceRate = inRange.find((r) => !r.city && r.province && norm(r.province) === norm(province));
+  const legacyCity = inRange.find((r) => r.city && norm(r.city) === norm(city) && !r.province);
+  const generic = inRange.find((r) => !r.city && !r.province);
+  const r = exactCity ?? provinceRate ?? legacyCity ?? generic;
+  if (r) return r.cost;
+  return c.baseCost + c.perKgCost * Math.max(0, Math.ceil(weight / 1000) - 1);
+}
+
+/** Freight-collect delivery is a single carrier-level option, independent of city and weight. */
+export const carrierHasFreightCollect = (c: Carrier) => c.supportsFreightCollect;
+
+export type DiscountLine = { productId: number; categoryId: number | null; amount: number; maxDiscount?: number };
+export type DiscountResult = { ok: boolean; error?: string; codeId?: number; code?: string; title?: string; amount: number };
+
+export async function evaluateCode(tx: DB, rawCode: string, userId: number | null, lines: DiscountLine[], lock = false): Promise<DiscountResult> {
+  const code = rawCode.trim().toUpperCase();
+  if (!code) return { ok: false, amount: 0 };
+  const q = tx.select().from(discountCodes).where(eq(discountCodes.code, code));
+  const [d] = lock ? await q.for("update") : await q;
+  const fail = (error: string): DiscountResult => ({ ok: false, error, amount: 0, code });
+  if (!d || !d.isActive) return fail("کد تخفیف نامعتبر است");
+  const now = new Date();
+  if (d.startsAt && d.startsAt > now) return fail("زمان استفاده از این کد هنوز فرا نرسیده");
+  if (d.endsAt && d.endsAt < now) return fail("این کد تخفیف منقضی شده است");
+  if (d.usageLimit !== null && d.usedCount >= d.usageLimit) return fail("ظرفیت استفاده از این کد تمام شده است");
+  if (d.targetPhone) {
+    const [customer]=userId?await tx.select({phone:users.phone}).from(users).where(eq(users.id,userId)):[];
+    if(customer?.phone!==d.targetPhone)return fail("این کد مخصوص شماره همراه مشتری دیگری است");
+  }
+  if (d.customerId) {
+    if (!userId) return fail("برای استفاده از این کد وارد حساب شوید");
+    if (d.customerId !== userId) return fail("این کد مخصوص مشتری دیگری است");
+  }
+  if (userId && d.perUserLimit > 0) {
+    const used = await tx.select({ id: discountUsages.id }).from(discountUsages).where(and(eq(discountUsages.codeId, d.id), eq(discountUsages.userId, userId)));
+    if (used.length >= d.perUserLimit) return fail("سقف استفاده شما از این کد پر شده است");
+  }
+  const restricted = d.productIds.length > 0 || d.categoryIds.length > 0;
+  const eligible = lines.filter((l) => !restricted || d.productIds.includes(l.productId) || (l.categoryId !== null && d.categoryIds.includes(l.categoryId)));
+  const base = eligible.reduce((a, l) => a + l.amount, 0);
+  if (!base) return fail("این کد برای کالاهای سبد شما قابل استفاده نیست");
+  const total = lines.reduce((a, l) => a + l.amount, 0);
+  if (d.minOrder > 0 && total < d.minOrder) return fail(`حداقل مبلغ خرید برای این کد ${d.minOrder.toLocaleString("fa-IR")} تومان است`);
+  let amount = d.type === "percent" ? Math.round((base * d.value) / 100) : d.value;
+  if (d.type === "percent" && d.maxDiscount > 0) amount = Math.min(amount, d.maxDiscount);
+  amount = Math.min(amount, base);
+  const costBounded = eligible.some((line) => line.maxDiscount !== undefined);
+  const safeCapacity = eligible.reduce((sum, line) => sum + (line.maxDiscount === undefined ? line.amount : Math.max(0, line.maxDiscount)), 0);
+  if (costBounded && amount > safeCapacity) return fail("این کد تخفیف با تخفیف‌های فعلی، قیمت فروش را از بهای خرید پایین‌تر می‌برد و قابل اعمال نیست");
+  return { ok: true, codeId: d.id, code, title: d.title, amount };
+}

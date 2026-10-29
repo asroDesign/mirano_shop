@@ -1,0 +1,21 @@
+.gallery { min-width:0; display:flex; flex-direction:column; gap:16px; }
+.stage { width:100%; aspect-ratio:4/5; max-height:720px; overflow:hidden; border-radius:14px; background:var(--minimal-soft,#f6f4f3); isolation:isolate; }
+.stage > img { padding:0; object-fit:cover; }
+.stage button { box-shadow:0 2px 10px #00000008; }
+.thumbnails { display:flex; align-items:center; gap:12px; overflow-x:auto; padding:3px; scrollbar-width:thin; }
+.thumbnails > button { width:64px; height:78px; border-radius:6px; box-shadow:none; border:1px solid transparent; }
+.thumbnails > button[aria-current="true"] { border-color:var(--color-emerald-700); outline:1px solid var(--color-emerald-700); outline-offset:2px; }
+.thumbnails > span { font-size:11px; color:var(--minimal-muted,#85808a); white-space:nowrap; }
+@media(max-width:767px) { .stage { max-height:560px; aspect-ratio:4/5; } .thumbnails { gap:10px; } .thumbnails > button { width:54px; height:66px; } }
+
+.promotionSlot { position:absolute; top:16px; right:16px; z-index:20; max-width:calc(100% - 88px); pointer-events:none; }
+@media(max-width:767px) { .promotionSlot { top:12px; right:12px; max-width:calc(100% - 76px); } }
+
+.fullStage { position:absolute; inset:0; overflow:hidden; touch-action:none; background:#111; }
+.fullImage { display:block; width:100%; height:100%; max-width:none; object-fit:contain; user-select:none; }
+.fullNavigation { pointer-events:none; position:absolute; inset:50% 16px auto; display:flex; justify-content:space-between; transform:translateY(-50%); }
+.fullNavigation button,.fullControls button { pointer-events:auto; display:grid; place-items:center; min-width:44px; height:44px; padding:8px; border:0; border-radius:50%; color:#fff; background:#18181880; backdrop-filter:blur(12px); }
+.fullControls { position:absolute; bottom:max(20px,env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:8px; max-width:calc(100% - 24px); padding:5px 14px; border-radius:50px; background:#181818b3; color:#fff; backdrop-filter:blur(12px); font-size:12px; white-space:nowrap; }
+.fullControls button { background:transparent; }
+.fullControls button:disabled { opacity:.35; }
+.fullControls button:focus-visible,.fullNavigation button:focus-visible { outline:2px solid white; outline-offset:2px; }

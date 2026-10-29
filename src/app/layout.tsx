@@ -1,0 +1,84 @@
+import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
+import { Toaster } from "@/components/client";
+import { getSettings } from "@/lib/settings";
+import { siteBase } from "@/lib/seo";
+import { setCurrencyUnit } from "@/lib/util";
+import { CurrencyInitializer } from "@/components/CurrencyInitializer";
+import { AttributionTracker } from "@/components/AttributionTracker";
+import { AnalyticsTracker } from "@/components/AnalyticsTracker";
+import { ProductCompareDock } from "@/components/ProductCompareDock";
+import { StorefrontMessages } from "@/components/StorefrontMessages";
+import { PwaRuntime } from "@/components/PwaRuntime";
+import { normalizePopupPages } from "@/lib/storefront-popup-pages";
+import "./globals.css";
+
+export const dynamic = "force-dynamic";
+export async function generateMetadata(): Promise<Metadata> {
+  const s = await getSettings();
+  const base = siteBase(s.siteUrl), image = s.defaultOgImageId ? `/api/media/${s.defaultOgImageId}` : "/images/mirano-pastry-hero.png";
+  return {
+    metadataBase: base,
+    manifest: "/manifest.webmanifest",
+    icons: {
+      icon: [
+        { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+        { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      ],
+      apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    },
+    appleWebApp: { capable: true, title: s.siteName, statusBarStyle: "default" },
+    title: { default: s.homeSeoTitle, template: `%s | ${s.siteName}` },
+    description: s.homeSeoDescription,
+    applicationName: s.siteName,
+    category: "shopping",
+    openGraph: { type: "website", locale: "fa_IR", siteName: s.siteName, title: s.homeSeoTitle, description: s.homeSeoDescription, url: base.toString(), images: [{ url: image, alt: s.siteName }] },
+    twitter: { card: "summary_large_image", title: s.homeSeoTitle, description: s.homeSeoDescription, images: [image] },
+  };
+}
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#805638" };
+
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const s = await getSettings();
+  const specialPopups = Array.isArray(s.specialPopups) && s.specialPopups.length
+    ? s.specialPopups.map((popup) => ({ ...popup, pages: normalizePopupPages(popup.pages) }))
+    : Number(s.specialPopupEnabled) === 1 && Array.isArray(s.specialPopupProductIds) && s.specialPopupProductIds.length
+      ? [{ id: "legacy-special", enabled: true, title: s.specialPopupTitle, body: s.specialPopupBody, imageId: Number(s.specialPopupMediaId), productIds: s.specialPopupProductIds, pages: ["*"], buttonLabel: s.specialPopupButtonLabel, delaySeconds: Number(s.specialPopupDelaySeconds), repeatHours: Number(s.specialPopupRepeatHours) }]
+      : [];
+  setCurrencyUnit(s.currency);
+  const defaultTheme = ["light", "dark", "system"].includes(s.appearanceMode) ? s.appearanceMode : "light";
+  const palette = ["sunshine", "forest", "ocean"].includes(s.appearancePalette) ? s.appearancePalette : "sunshine";
+  return (
+    <html lang="fa" dir="rtl" data-default-theme={defaultTheme} data-theme="light" data-palette={palette} suppressHydrationWarning>
+      <head>
+        {/* Yektanet analytics — keep it first inside the head so it runs before everything else. */}
+        <script
+          id="yektanet-analytics"
+          dangerouslySetInnerHTML={{
+            __html: `
+              !function (t, e, n) {
+                  t.yektanetAnalyticsObject = n, t[n] = t[n] || function () {
+                      t[n].q.push(arguments)
+                  }, t[n].q = t[n].q || [];
+                  var a = new Date, r = a.getFullYear().toString() + "0" + a.getMonth() + "0" + a.getDate() + "0" + a.getHours(),
+                      c = e.getElementsByTagName("script")[0], s = e.createElement("script");
+                  s.id = "ua-script-F3qfXuTu"; s.dataset.analyticsobject = n;
+                  s.async = 1; s.type = "text/javascript";
+                  s.src = "https://cdn.yektanet.com/rg_woebegone/scripts_v3/F3qfXuTu/rg.complete.js?v=" + r, c.parentNode.insertBefore(s, c)
+              }(window, document, "yektanet");
+            `,
+          }}
+        />
+        <script id="appearance-init" dangerouslySetInnerHTML={{ __html: `try{var r=document.documentElement;var p=localStorage.getItem("organo-color-mode");var d=r.dataset.defaultTheme;var m=(p==="light"||p==="dark")?p:(d==="light"||d==="dark")?d:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");r.dataset.theme=m;}catch(e){document.documentElement.dataset.theme=document.documentElement.dataset.defaultTheme==="dark"?"dark":"light";}` }} />
+        <link rel="preload" href="/fonts/Vazirmatn-wght.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+      </head>
+      <body className="bg-leaf-pattern min-h-screen text-slate-900 antialiased">
+        <PwaRuntime />
+        <CurrencyInitializer currency={s.currency}><AttributionTracker /><AnalyticsTracker />
+          <StorefrontMessages announcement={{ enabled: Number(s.announcementEnabled) === 1, text: s.announcementText, href: s.announcementHref, theme: s.announcementTheme }} popups={specialPopups} />
+          {children}<ProductCompareDock /><Toaster />
+        </CurrencyInitializer>
+      </body>
+    </html>
+  );
+}

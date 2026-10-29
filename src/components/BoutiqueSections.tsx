@@ -1,0 +1,28 @@
+import Link from "next/link";
+import Image, { type ImageLoaderProps } from "next/image";
+import { ArrowLeft, CookingPot, Package, Wheat, Truck, CreditCard, Headphones, Ruler } from "lucide-react";
+import type { SitePageBlock } from "@/db/schema";
+import type { HomeData } from "@/lib/home-data";
+
+const heroMediaLoader = ({ src, width }: ImageLoaderProps) => `${src}?w=${[320, 640, 960, 1280, 1600].find(size => size >= width) ?? 1600}`;
+
+export function BoutiqueSection({ block, data, primary }: { block: SitePageBlock; data: HomeData; primary: boolean }) {
+ // Replace old saved demo copy unless it describes pastry supplies, baking or shopping.
+ const pastryCopy = /قنادی|شیرینی|کیک|دسر|شکلات|خامه|ماسوره|فوندانت|آرد|خمیر|پخت|تزئین|تزیین|قالب|وانیل|کاکائو|ابزار|مواد|بسته‌بندی|خرید|ارسال|سفارش|راهنما|پشتیبانی|فروشگاه|تازه‌رسیده/;
+ const keepCopy = (value?: string | null) => !value || pastryCopy.test(value);
+ block = { ...block, title: keepCopy(block.title) ? block.title : "", body: keepCopy(block.body) ? block.body : "", items: block.items?.filter((item) => keepCopy(item.title) && keepCopy(item.body)), options: { ...block.options, secondaryLabel: block.options?.secondaryLabel } };
+ const Title = primary ? "h1" : "h2";
+ switch (block.sectionId) {
+ case "hero": return <section className="boutique-hero">
+  <div className="boutique-hero-copy"><span className="boutique-eyebrow">MIRANO · PASTRY SUPPLIES</span><div className="boutique-rule"/><p className="boutique-kicker">ابزار و مواد برای ایده‌های شیرین</p><Title>{block.title || <>زیبایی در سادگی،<br/><em>درخشش در جزئیات.</em></>}</Title><p className="boutique-description">{block.body || "از قالب و ابزار پخت تا مواد اولیه و بسته‌بندی؛ هرآنچه برای شیرینی‌پزی نیاز دارید در میرانو پیدا می‌شود."}</p><div className="boutique-actions"><Link className="boutique-button" href={block.href || "/shop?sort=new"}>{block.buttonLabel || "کشف تازه‌رسیده‌ها"}<ArrowLeft size={18}/></Link><Link className="boutique-text-link" href={block.options?.secondaryHref || "/shop"}>{block.options?.secondaryLabel || "مشاهده همه محصولات"}</Link></div><span className="boutique-hero-note">همراه شما از آماده‌سازی تا تزئین</span></div>
+  <div className="boutique-hero-art"><Image loader={block.mediaId ? heroMediaLoader : undefined} unoptimized={!block.mediaId} src={block.mediaId ? `/api/media/${block.mediaId}` : "/images/boutique-editorial.svg"} alt={block.mediaId ? block.caption || "لوازم قنادی" : "چیدمان ابزار قنادی و شیرینی‌های تازه"} width={1280} height={1500} sizes="(max-width: 600px) 100vw, (max-width: 1100px) 55vw, 45vw" priority fetchPriority="high" className="h-full w-full object-cover"/><div className="boutique-image-label"><span>THE NEW COLLECTION</span><b>جزئیاتی که تفاوت می‌سازند</b><Link href="/shop?sort=new" aria-label="مشاهده مجموعه جدید"><ArrowLeft size={22}/></Link></div></div>
+ </section>;
+ case "trust": return <section className="boutique-benefits">{[[Truck,"ارسال سفارش","راهنمای تحویل و ارسال","/shipping-delivery"],[Ruler,"انتخاب آگاهانه","مشاوره پیش از خرید","/contact"],[CreditCard,"خرید آسان","سبد خرید و پرداخت","/cart"],[Headphones,"همراه شما","ارتباط با پشتیبانی","/contact"]].map(([Icon,title,body,href]) => {const I=Icon as typeof Truck; return <Link href={href as string} key={title as string}><I size={25} strokeWidth={1.3}/><div><b>{title as string}</b><span>{body as string}</span></div></Link>;})}</section>;
+ case "categories": {const categoryPattern = /قالب|ابزار|تجهیز|پخت|قنادی|نازل|ماسوره|مواد|اولیه|شکر|آرد|شکلات|پودر|تزئین|تزیین|بسته|جعبه|کاپ|ظرف|کاتر|فوندانت|خامه|وانیل/i; const categories = data.cats.filter(category => categoryPattern.test(category.name)).slice(0,4).map((category) => ({category, icon: /مواد|آرد|شکلات/.test(category.name) ? Wheat : /بسته|جعبه|تزئین/.test(category.name) ? Package : CookingPot})); return <section><div className="boutique-section-title"><div><span className="boutique-eyebrow">MAHLEGHA COLLECTION</span><h2>{block.title || "دسته‌بندی لوازم قنادی"}</h2><p>{block.body || "ابزار و مواد اولیهٔ شیرینی‌پزی"}</p></div><Link href="/categories">همه دسته‌بندی‌ها <ArrowLeft size={16}/></Link></div><div className="boutique-categories">{categories.map(({category,icon:Icon},i)=><Link key={category.id} href={`/shop?cat=${category.id}`}><span className="boutique-category-number">0{i+1}</span><Icon size={56} strokeWidth={.8}/><b>{category.name}</b><span>کشف مجموعه <ArrowLeft size={15}/></span></Link>)}</div></section>;}
+ case "why": return <section className="boutique-story"><div><span className="boutique-eyebrow">LESS, BUT BETTER</span><h2>{block.title || "شیرینی خوب، از ابزار مناسب شروع می‌شود."}</h2></div><div><p>{block.body || "میرانو ابزار و مواد اولیهٔ شیرینی‌پزی را گرد هم آورده تا برای ایده‌های شیرین‌تان انتخاب آسان‌تری داشته باشید."}</p><Link href={block.href || "/about"}>داستان میرانو <ArrowLeft size={18}/></Link></div></section>;
+ case "guarantee": return <section className="boutique-help"><Ruler size={38} strokeWidth={1}/><div><h2>{block.title || "برای انتخاب بهتر، کنارتان هستیم"}</h2><p>{block.body || "پیش از سفارش، اطلاعات محصول و شرایط خرید و بازگشت را بررسی کنید؛ برای پرسش‌های بیشتر با ما در تماس باشید."}</p></div><Link className="boutique-button" href={block.href || "/faq"}>{block.buttonLabel || "راهنمای خرید"}<ArrowLeft size={16}/></Link></section>;
+ case "promo": return <section className="boutique-story"><div><span className="boutique-eyebrow">YOUR NEXT BAKING IDEA</span><h2>{block.title || "انتخاب بعدیِ محبوب شما اینجاست."}</h2></div><Link className="boutique-button" href={block.href || "/shop"}>{block.buttonLabel || "دیدن محصولات قنادی"}<ArrowLeft size={18}/></Link></section>;
+ case "testimonials": if (!block.items?.length) return null;
+ }
+ return null;
+}

@@ -1,0 +1,192 @@
+import Link from "next/link";
+import { BoutiqueSection } from "./BoutiqueSections";
+import Image from "next/image";
+import { ShieldCheck, Truck, Leaf, Wallet, Flame, ArrowLeft, CookingPot, Ruler, Sparkles, ShoppingBag, Star, Quote, BadgePercent, MapPin } from "lucide-react";
+import type { SitePageBlock } from "@/db/schema";
+import type { HomeData } from "@/lib/home-data";
+import { ProductCard } from "./ProductCard";
+import { BlogCard } from "./BlogCard";
+import { LiveSearch } from "./LiveSearch";
+import { Countdown } from "./Countdown";
+import { SiteBlockContent } from "./SiteBlockContent";
+import { PageBlockFrame } from "./PageBlockFrame";
+import { siteBrandText } from "@/lib/brand";
+import { faNum } from "@/lib/util";
+import { ProductShelf } from "./ProductShelf";
+const CAT_STYLE = [
+  ["✦", "from-rose-100 to-rose-200"], ["◇", "from-amber-100 to-rose-100"], ["○", "from-stone-100 to-stone-200"],
+  ["♡", "from-rose-50 to-pink-100"], ["✧", "from-amber-50 to-amber-100"], ["◌", "from-stone-50 to-rose-100"],
+];
+
+export function HomeContent({ blocks, data }: { blocks: SitePageBlock[]; data: HomeData }) {
+ const primary = blocks.findIndex(b => b.enabled !== false);
+ return <main className="boutique-home mx-auto flex w-full max-w-7xl flex-col gap-16 px-4 pb-16">{blocks.map((block,index) => <PageBlockFrame key={block.id || index} block={block}>{block.type === "store_section" ? <StoreSection block={block} data={data} primary={index === primary}/> : block.type === "product_shelf" ? <ProductShelf block={block} data={data}/> : <SiteBlockContent block={block} primary={index === primary}/>}</PageBlockFrame>)}</main>;
+}
+export function StoreSection({ block, data, primary = false }: { block: SitePageBlock; data: HomeData; primary?: boolean }) {
+ if (["hero", "trust", "categories", "why", "guarantee", "promo"].includes(block.sectionId || "") || (block.sectionId === "testimonials" && !block.items?.length)) return <BoutiqueSection block={block} data={data} primary={primary}/>;
+ const HeroTitle = primary ? "h1" : "h2";
+ const { all, cats, fests, farms, st, latestPosts } = data;
+ const sectionBlock = (_id: string) => block;
+ const selected = block.options?.productIds;
+ const childCategoryIds = cats.filter(c => c.parent_id === block.options?.categoryId).map(c => c.id);
+ const pool = selected?.length ? selected.flatMap(id => all.find(p=>p.id===id) ? [all.find(p=>p.id===id)!] : []) : all.filter(p=>!block.options?.categoryId || p.categoryId===block.options.categoryId || (p.categoryId !== null && childCategoryIds.includes(p.categoryId)));
+  const mv = !!st.multiVendor;
+  const deals = selected?.length ? pool.slice(0, block.options?.limit ?? 6) : [...pool].filter((p) => p.inStock && p.discountPct > 0).sort((a, b) => b.discountPct - a.discountPct).slice(0, block.options?.limit ?? 6);
+  const endOfDay = new Date(new Date().setHours(23, 59, 59, 999)).toISOString();
+  const fest = fests[0];
+  const festItems = selected?.length ? pool.slice(0, block.options?.limit ?? 4) : pool.filter((p) => p.festival && p.inStock).slice(0, block.options?.limit ?? 4);
+  const best = selected?.length ? pool.slice(0, block.options?.limit ?? 10) : [...pool].filter((p) => p.inStock).sort((a, b) => b.sold - a.sold).slice(0, block.options?.limit ?? 10);
+  const fresh = selected?.length ? pool.slice(0, block.options?.limit ?? 5) : [...pool].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, block.options?.limit ?? 5);
+  const roots = cats.filter((c) => !c.parent_id);
+  const homeHero = block;
+  const heroMediaId = homeHero?.mediaId || st.heroMediaId;
+  const trustIcons = [Ruler, Truck, Wallet, ShoppingBag];
+  const trustItems = sectionBlock("trust")?.items?.length
+    ? sectionBlock("trust")!.items!.map((item, index) => [trustIcons[index % trustIcons.length], item.title, item.body] as const)
+    : [[CookingPot, "ابزار مناسب", "برای پخت و تزئین"], [Truck, "ارسال سفارش", "هزینه پیش از خرید نمایش داده می‌شود"], [Wallet, "پرداخت آسان", "تکمیل سفارش در چند مرحله"], [ShoppingBag, "پشتیبانی میرانو", "همراه شما در انتخاب و خرید"]] as const;
+  const testimonialItems = sectionBlock("testimonials")?.items?.length
+    ? sectionBlock("testimonials")!.items!.map((item) => [item.title, item.body] as const)
+    : [] as const;
+
+ switch(block.sectionId) {
+case "hero": return (<section  className="relative overflow-hidden">
+        {heroMediaId && st.heroType === "video" && !homeHero?.mediaId
+          ? <video src={`/api/media/${heroMediaId}`} autoPlay muted loop playsInline preload="auto" poster="/images/mirano-pastry-hero.webp" className="absolute inset-0 h-full w-full object-cover" />
+          : <Image src={heroMediaId ? `/api/media/${heroMediaId}` : "/images/mirano-pastry-hero.webp"} alt={block.caption || `لوازم قنادی ${st.siteName}`} fill priority sizes="100vw" className="object-cover" />}
+        <div className="absolute inset-0 bg-gradient-to-l from-emerald-950/95 via-emerald-900/75 to-emerald-900/10" />
+        <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 lg:grid-cols-[1.25fr_1fr] lg:py-24">
+          <div className="space-y-6 text-white">
+            <span className="inline-flex items-center gap-2 rounded-full bg-lime-300/20 px-4 py-1.5 text-xs font-bold text-lime-200 ring-1 ring-lime-300/30 backdrop-blur"><CookingPot className="h-4 w-4" />{block.options?.badge || "فروشگاه لوازم قنادی میرانو"}</span>
+            <HeroTitle className="text-balance bg-gradient-to-l from-white via-lime-100 to-yellow-100 bg-clip-text text-4xl font-black leading-[1.35] text-transparent md:text-6xl">{homeHero?.title || st.heroTitle}</HeroTitle>
+            <p className="max-w-xl text-lg leading-9 text-emerald-50/90">{homeHero?.body || st.heroSubtitle}</p>
+            <div className="flex flex-wrap gap-3">
+              <Link href={block.href || "/shop"} className="rounded-2xl bg-lime-400 px-6 py-3 font-black text-emerald-950 shadow-xl shadow-lime-500/30 transition hover:bg-lime-300">{block.buttonLabel || "شروع خرید"}</Link>
+              <Link href={block.options?.secondaryHref || "/shop?fest=1"} className="rounded-2xl bg-white/10 px-6 py-3 font-bold text-white ring-1 ring-white/30 backdrop-blur transition hover:bg-white/20">{block.options?.secondaryLabel || "پیشنهادهای ویژه"}</Link>
+            </div>
+            {block.options?.showStats !== false && <div className="flex flex-wrap gap-8 pt-4">
+              {[[`${faNum(all.length)}+`, "محصول قنادی"], mv ? [`${faNum(farms.length)}+`, "فروشنده منتخب"] : [`${faNum(st.returnDays)} روز`, "مهلت بازگشت"], ["۱۰۰٪", "تنوع قابل انتخاب"]].map(([v, l]) => <div key={l}><b className="block text-3xl font-black text-lime-300">{v}</b><span className="text-sm text-emerald-100/80">{l}</span></div>)}
+            </div>}
+          </div>
+          {block.options?.showSearch !== false && <div data-builder-interactive><LiveSearch popular={["قالب کیک", "ماسوره", "شکلات تخته‌ای"]} /></div>}
+        </div>
+        <svg viewBox="0 0 1440 60" className="home-hero-wave relative block w-full text-[#faf7ef]" preserveAspectRatio="none"><path fill="currentColor" d="M0,40 C360,90 1080,-10 1440,40 L1440,60 L0,60 Z" /></svg>
+      </section>);
+case "trust": return (<section  className="-mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {(sectionBlock("trust")?.title || sectionBlock("trust")?.body) && <div className="col-span-full"><Title title={sectionBlock("trust")?.title || "مزیت‌های خرید"} sub={sectionBlock("trust")?.body || undefined} /></div>}
+          {trustItems.map(([I, t, d], i) => {
+            const Icon = I as typeof Truck;
+            return <div key={t as string} className="flex items-center gap-3 rounded-3xl bg-white p-4 shadow-sm ring-1 ring-emerald-900/5"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-700">{block.items?.[i]?.mediaId ? <img src={`/api/media/${block.items[i].mediaId}`} alt={block.items[i].caption || ""} className="size-full rounded-xl object-cover"/> : <Icon className="h-6 w-6" />}</span><div><b className="text-sm text-emerald-950">{t as string}</b><div className="text-[11px] text-slate-500">{d as string}</div>{block.items?.[i]?.href && <Link className="mt-2 block text-xs font-bold" href={block.items[i].href!}>{block.items[i].buttonLabel}</Link>}</div></div>;
+          })}
+        </section>);
+case "categories": return (<section >
+          <Title title={sectionBlock("categories")?.title || "دسته‌بندی لوازم قنادی"} sub={sectionBlock("categories")?.body || "ابزار و مواد اولیهٔ قنادی را ببینید"} href="/categories" />
+          <div className="grid grid-cols-3 gap-4 sm:grid-cols-6">
+            {roots.slice(0, block.options?.limit ?? roots.length).map((c, i) => {
+              const [emoji, bg] = CAT_STYLE[i % CAT_STYLE.length];
+              return (
+                <Link key={c.id} href={`/shop?cat=${c.id}`} className="group flex flex-col items-center gap-3 text-center">
+                  <span className={`grid aspect-square w-full max-w-32 place-items-center rounded-full bg-gradient-to-br ${bg} text-5xl shadow-inner ring-4 ring-white transition duration-300 group-hover:-translate-y-1 group-hover:scale-105 group-hover:shadow-xl`}>{emoji}</span>
+                  <span><b className="block text-sm text-emerald-950">{c.name}</b><span className="text-[11px] text-slate-500">{faNum(c.n)} محصول</span></span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>);
+case "festival": return (fest && festItems.length > 0 && (
+          <section style={{ background: `linear-gradient(125deg, ${fest.color}, #7c2d12 55%, #14532d)` }} className="relative overflow-hidden rounded-[2.5rem] p-6 text-white md:p-8">
+            <div className="absolute -left-16 -top-16 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
+            <div className="relative mb-6 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-4"><span className="grid h-16 w-16 place-items-center rounded-3xl bg-white/15 backdrop-blur"><Flame className="h-9 w-9" /></span><div><h2 className="text-2xl font-black md:text-3xl">{sectionBlock("festival")?.title || fest.title}</h2><p className="text-sm text-white/85">{sectionBlock("festival")?.body || `${fest.description} · تا ${faNum(fest.discountPercent)}٪ تخفیف`}</p></div></div>
+              <div className="flex items-center gap-3"><span className="text-sm text-white/80">پایان جشنواره:</span><Countdown to={fest.endsAt} light /></div>
+            </div>
+            <div className="relative grid grid-cols-2 gap-4 md:grid-cols-4">{festItems.map((p) => <div key={p.id} className="text-slate-900"><ProductCard p={p} /></div>)}</div>
+            <Link href="/shop?fest=1" className="relative mt-6 inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-2.5 text-sm font-black text-emerald-900">همه محصولات جشنواره<ArrowLeft className="h-4 w-4" /></Link>
+          </section>
+        ));
+case "deals": return (deals.length > 0 && (
+          <section  className="overflow-hidden rounded-[2.5rem] bg-gradient-to-l from-amber-400 via-amber-300 to-yellow-200 p-5 md:p-7">
+            <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
+              <div className="flex flex-col items-center justify-center gap-3 text-center text-amber-950">
+                <span className="text-5xl">✦</span>
+                <h2 className="text-2xl font-black leading-snug">{sectionBlock("deals")?.title || <>شگفت‌انگیزهای<br />امروز</>}</h2>
+                {sectionBlock("deals")?.body && <p className="text-sm">{sectionBlock("deals")?.body}</p>}
+                <Countdown to={endOfDay} />
+                <Link href="/shop?sort=discount" className="rounded-2xl bg-amber-950 px-5 py-2 text-sm font-bold text-amber-100">مشاهده همه</Link>
+              </div>
+              <div className="flex snap-x gap-3 overflow-x-auto pb-2">{deals.map((p) => <div key={p.id} className="w-52 shrink-0 snap-start"><ProductCard p={p} /></div>)}</div>
+            </div>
+          </section>
+        ));
+case "popular": return (<section >
+          <Title title={sectionBlock("popular")?.title || `محبوب‌ترین‌های ${st.siteName}`} sub={sectionBlock("popular")?.body || "انتخاب مشتریان در هفته گذشته"} href="/shop?sort=best" />
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">{best.map((p) => <ProductCard key={p.id} p={p} />)}</div>
+        </section>);
+case "why": return (<section  className="grid items-center gap-8 overflow-hidden rounded-[2.5rem] bg-emerald-950 p-8 text-white md:grid-cols-2 md:p-12">
+          <div className="space-y-4">
+            <span className="text-sm font-bold text-lime-300">شیرینی‌پزی حرفه‌ای</span>
+            <h2 className="text-balance text-3xl font-black leading-snug">{sectionBlock("why")?.title || "انتخابی برای هر روز و هر موقعیت"}</h2>
+            <p className="leading-8 text-emerald-100/80">{sectionBlock("why")?.body || `در ${st.siteName} ابزار پخت، مواد اولیه و لوازم تزئین را با مشخصات روشن پیدا می‌کنید.`}</p>
+            <Link href={block.href || "/about"} className="inline-flex items-center gap-2 rounded-2xl bg-lime-400 px-5 py-2.5 text-sm font-black text-emerald-950">{block.buttonLabel || "بیشتر بدانید"}<ArrowLeft className="h-4 w-4" /></Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {(block.items?.length ? block.items.map((it,i) => [[CookingPot, Ruler, Sparkles, ShoppingBag][i % 4], it.title, it.body]) : [[CookingPot, "برای پخت", "ابزارهای کاربردی قنادی"], [Sparkles, "برای تزئین", "لوازم مناسب ایده‌های شیرین"], [Ruler, "مشخصات روشن", "انتخاب آگاهانه پیش از خرید"], [ShoppingBag, "خرید آسان", "پشتیبانی همراه در هر مرحله"]]).map(([I, t, d], i) => {
+              const Icon = I as typeof CookingPot;
+              return <div key={t as string} className="rounded-3xl bg-white/5 p-5 ring-1 ring-white/10">{block.items?.[i]?.mediaId ? <img src={`/api/media/${block.items[i].mediaId}`} alt={block.items[i].caption || ""} className="mb-3 h-20 w-full rounded-xl object-cover"/> : <Icon className="mb-3 h-7 w-7 text-lime-300" />}<b className="block">{t as string}</b><span className="text-xs text-emerald-100/70">{d as string}</span>{block.items?.[i]?.href && <Link className="mt-3 block text-xs font-bold" href={block.items[i].href!}>{block.items[i].buttonLabel}</Link>}</div>;
+            })}
+          </div>
+        </section>);
+case "guarantee": return (<section  className="grid items-center gap-6 rounded-[2.5rem] bg-white p-7 ring-1 ring-emerald-900/5 md:grid-cols-[auto_1fr_auto]">
+          <span className="grid h-24 w-24 place-items-center rounded-full bg-gradient-to-br from-rose-100 to-amber-200 text-5xl"><Ruler className="size-10 text-rose-800" /></span>
+          <div><h2 className="text-xl font-black text-emerald-950">{sectionBlock("guarantee")?.title || `راهنمای خرید و بازگشت تا ${faNum(st.returnDays)} روز`}</h2><p className="mt-2 text-sm leading-8 text-slate-600">{sectionBlock("guarantee")?.body || "راهنمای خرید و مشخصات هر محصول را پیش از سفارش بررسی کنید. برای پرسش درباره انتخاب یا شرایط بازگشت با پشتیبانی در تماس باشید."}</p></div>
+          <Link href={block.href || "/faq"} className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white">{block.buttonLabel || "شرایط بازگشت"}</Link>
+        </section>);
+case "farms": return (mv && farms.length > 0 && (
+          <section >
+            <Title title={sectionBlock("farms")?.title || "برندها و فروشندگان منتخب"} sub={sectionBlock("farms")?.body || "با محصولات و فروشندگان منتخب میرانو آشنا شوید"} />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {farms.slice(0, block.options?.limit ?? 6).map((f) => (
+                <div key={f.id} className="flex items-center gap-4 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-emerald-900/5 transition hover:-translate-y-0.5 hover:shadow-lg">
+                  <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-lime-200 to-emerald-300 text-2xl font-black text-emerald-900">{f.shopName.slice(0, 1)}</span>
+                  <div className="min-w-0"><b className="block truncate text-emerald-950">{f.shopName}</b><div className="flex items-center gap-3 text-xs text-slate-500"><span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{f.city}</span><span className="flex items-center gap-0.5 text-amber-500"><Star className="h-3 w-3 fill-amber-400" />{faNum(f.rating)}</span></div></div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ));
+case "fresh": return (<section >
+          <Title title={sectionBlock("fresh")?.title || "تازه‌رسیده‌ها"} sub={sectionBlock("fresh")?.body || "تازه‌رسیده‌های قنادی"} href="/shop?sort=new" />
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">{fresh.map((p) => <ProductCard key={p.id} p={p} />)}</div>
+        </section>);
+case "blog": return (latestPosts.length > 0 && <section >
+          <Title title={sectionBlock("blog")?.title || `از مجله ${st.siteName}`} sub={sectionBlock("blog")?.body || "آموزش قنادی و شیرینی‌پزی"} href="/blog" />
+          <div className="grid gap-5 md:grid-cols-3">{latestPosts.slice(0, block.options?.limit ?? 3).map((post) => <BlogCard key={post.id} post={post} siteName={st.siteName} />)}</div>
+        </section>);
+case "testimonials": return (<section >
+          <Title title={sectionBlock("testimonials")?.title || "مشتریان درباره ما"} sub={sectionBlock("testimonials")?.body || `تجربه واقعی خرید از ${st.siteName}`} />
+          <div className="grid gap-4 md:grid-cols-3">
+            {testimonialItems.map(([n, t], i) => (
+              <figure key={n} className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-emerald-900/5"><Quote className="h-8 w-8 text-lime-400" /><blockquote className="mt-3 text-sm leading-8 text-slate-600">{siteBrandText(t, st.siteName)}</blockquote><figcaption className="mt-4 flex items-center justify-between"><b className="flex items-center gap-2 text-sm text-emerald-950">{block.items?.[i]?.mediaId && <img src={`/api/media/${block.items[i].mediaId}`} alt={block.items[i].caption || ""} className="size-9 rounded-full object-cover"/>}{n}</b><span className="flex text-amber-400">{[1, 2, 3, 4, 5].map((i) => <Star key={i} className="h-3.5 w-3.5 fill-amber-400" />)}</span></figcaption>{block.items?.[i]?.href && <Link className="mt-3 block text-xs font-bold" href={block.items[i].href!}>{block.items[i].buttonLabel}</Link>}</figure>
+            ))}
+          </div>
+        </section>);
+case "promo": if (block.items?.length) return <section><div>{block.title && <h2 className="mb-4 text-2xl font-black">{block.title}</h2>}{block.body && <p className="mb-4 text-sm">{block.body}</p>}</div><div className="builder-grid grid gap-4 md:grid-cols-2">{block.items.map((item,i) => <article key={item.id || i} className={`flex items-center gap-5 rounded-[2rem] p-7 ${i % 2 ? "bg-gradient-to-l from-amber-100 to-orange-100" : "bg-gradient-to-l from-lime-100 to-emerald-100"}`}>{item.mediaId ? <img src={`/api/media/${item.mediaId}`} alt={item.caption || ""} className="size-20 rounded-xl object-cover"/> : <BadgePercent className="size-14 shrink-0 text-amber-700"/>}<div><h3 className="text-lg font-bold">{item.title}</h3><p className="mt-1 whitespace-pre-line text-sm leading-7">{item.body}</p>{item.href && item.buttonLabel && <Link className="mt-3 inline-block text-sm font-bold" href={item.href}>{item.buttonLabel} ←</Link>}</div></article>)}</div></section>; return (<section  className="grid gap-4 md:grid-cols-2">
+          <div className="flex items-center gap-5 rounded-[2rem] bg-gradient-to-l from-lime-100 to-emerald-100 p-7">
+            <BadgePercent className="h-14 w-14 shrink-0 text-emerald-700" />
+            <div><b className="text-lg text-emerald-950">{sectionBlock("promo")?.title || "تازه‌رسیده‌های قنادی"}</b><p className="mt-1 text-sm text-emerald-900/70">{sectionBlock("promo")?.body || "تازه‌رسیده‌های ابزار و مواد اولیهٔ قنادی را ببینید."}</p><Link href="/shop" className="mt-3 inline-block text-sm font-bold text-emerald-700">شروع خرید ←</Link></div>
+          </div>
+          {mv && !!st.allowSellerSignup ? <Link href="/login?seller=1" className="group flex items-center gap-5 rounded-[2rem] bg-gradient-to-l from-amber-100 to-orange-100 p-7">
+            <CookingPot className="h-14 w-14 shrink-0 text-amber-700 transition group-hover:scale-110" />
+            <div><b className="text-lg text-amber-950">تأمین‌کننده لوازم قنادی هستید؟</b><p className="mt-1 text-sm text-amber-900/70">محصولات خود را به مشتریان میرانو معرفی کنید.</p><span className="mt-3 inline-block text-sm font-bold text-amber-700">ثبت‌نام فروشندگان ←</span></div>
+          </Link> : <Link href="/contact" className="group flex items-center gap-5 rounded-[2rem] bg-gradient-to-l from-amber-100 to-orange-100 p-7"><ShoppingBag className="h-14 w-14 shrink-0 text-amber-700 transition group-hover:scale-110" /><div><b className="text-lg text-amber-950">برای انتخاب راهنمایی می‌خواهید؟</b><p className="mt-1 text-sm text-amber-900/70">برای پرسش دربارهٔ ابزار و مواد اولیه با ما در تماس باشید.</p><span className="mt-3 inline-block text-sm font-bold text-amber-700">تماس با پشتیبانی ←</span></div></Link>}
+        </section>);
+default: return null;
+ }
+}
+function Title({ title, sub, href }: { title: string; sub?: string; href?: string }) {
+  return (
+    <div className="mb-6 flex items-end justify-between gap-3">
+      <div><h2 className="flex items-center gap-2 text-2xl font-black text-emerald-950"><Leaf className="h-6 w-6 text-lime-500" />{title}</h2>{sub && <p className="mt-1 text-sm text-slate-500">{sub}</p>}</div>
+      {href && <Link href={href} className="flex shrink-0 items-center gap-1 rounded-full bg-white px-4 py-2 text-sm font-bold text-emerald-700 shadow-sm ring-1 ring-emerald-900/5 transition hover:gap-2">مشاهده همه<ArrowLeft className="h-4 w-4" /></Link>}
+    </div>
+  );
+}
