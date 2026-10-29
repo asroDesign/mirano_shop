@@ -149,14 +149,9 @@ export async function quoteCart(tx: DB, items: CartInput[], lock: boolean, opts:
       const safePct = safeDiscountPercent(option.price, unitCost, requestedPct);
       const promotionKind = safePct ? (useVariantDiscount ? "variant" : base.promotionKind) : null;
       const finalPrice = applyPct(option.price, safePct);
-<<<<<<< HEAD
-      const error = option.error ?? (!Number.isFinite(v.price) || v.price <= 0 || !Number.isFinite(finalPrice) || finalPrice <= 0 ? "قیمت معتبر برای این محصول ثبت نشده است" : !tierFloorOk ? "قیمت پلکانی از بهای میانگین فعلی انبار کمتر است" : option.price < unitCost ? "قیمت فروش از بهای میانگین فعلی انبار کمتر است" : ok ? undefined : "موجودی انبار مرکزی کافی نیست");
-      lines.push({ ...base, festivalPct: safePct, festivalTitle: promotionKind === "variant" ? scheduled!.title : base.festivalTitle, promotionKind, title: p.nameFa, variantTitle: [v.title, option.title].filter(Boolean).join(" · ") || null, attrs: v.attrs, maxQty: p.allowBackorder ? 100 : Math.min(100, Math.max(0, available)), unitPrice: option.price, lineTotal: option.price * it.qty, available, unitCost, ok: ok && !error, tieredPricing: !!tier,
-=======
       const effectivePrice = Number(v.price);
-      const error = option.error ?? (!Number.isFinite(effectivePrice) || effectivePrice <= 0 || !Number.isFinite(finalPrice) || finalPrice <= 0 ? "قیمت معتبر برای این محصول ثبت نشده است" : !tierFloorOk ? "قیمت پلکانی از آخرین بهای خرید کمتر است" : option.price < unitCost ? "قیمت فروش از آخرین بهای خرید کمتر است" : ok ? undefined : "موجودی انبار مرکزی کافی نیست");
+      const error = option.error ?? (!Number.isFinite(effectivePrice) || effectivePrice <= 0 || !Number.isFinite(finalPrice) || finalPrice <= 0 ? "قیمت معتبر برای این محصول ثبت نشده است" : !tierFloorOk ? "قیمت پلکانی از بهای میانگین فعلی انبار کمتر است" : option.price < unitCost ? "قیمت فروش از بهای میانگین فعلی انبار کمتر است" : ok ? undefined : "موجودی انبار مرکزی کافی نیست");
       lines.push({ ...base, festivalPct: safePct, festivalTitle: promotionKind === "variant" ? scheduled!.title : base.festivalTitle, promotionKind, title: p.nameFa, variantTitle: [v.title, option.title].filter(Boolean).join(" · ") || null, attrs: v.attrs, maxQty: p.allowBackorder ? 100 : Math.min(100, Math.max(0, available)), allowBackorder: p.allowBackorder, unitPrice: option.price, lineTotal: option.price * it.qty, available, unitCost, ok: ok && !error, tieredPricing: !!tier,
->>>>>>> a0200c7 (first commit)
         error, alternatives: ok ? [] : await alternativesFor(tx, p.id, it.qty) });
     } else {
       if (p.source !== "central") { lines.push({ ...base, error: "برای این محصول فروشنده را انتخاب کنید", alternatives: await alternativesFor(tx, p.id, it.qty) }); continue; }
@@ -170,12 +165,8 @@ export async function quoteCart(tx: DB, items: CartInput[], lock: boolean, opts:
       const safePct = safeDiscountPercent(option.price, p.avgCost, base.festivalPct);
       const tierFloorOk = !tier || tierPrice >= p.avgCost;
       const finalPrice = applyPct(option.price, safePct);
-<<<<<<< HEAD
-      const error = option.error ?? (!Number.isFinite(p.basePrice) || p.basePrice <= 0 || !Number.isFinite(finalPrice) || finalPrice <= 0 ? "قیمت معتبر برای این محصول ثبت نشده است" : !tierFloorOk ? "قیمت پلکانی از بهای میانگین فعلی انبار کمتر است" : option.price < p.avgCost ? "قیمت فروش از بهای میانگین فعلی انبار کمتر است" : ok ? undefined : "موجودی انبار مرکزی کافی نیست");
-=======
-      const effectivePrice = p.basePrice;
-      const error = option.error ?? (!Number.isFinite(effectivePrice) || effectivePrice <= 0 || !Number.isFinite(finalPrice) || finalPrice <= 0 ? "قیمت معتبر برای این محصول ثبت نشده است" : !tierFloorOk ? "قیمت پلکانی از آخرین بهای خرید کمتر است" : option.price < p.avgCost ? "قیمت فروش از آخرین بهای خرید کمتر است" : ok ? undefined : "موجودی انبار مرکزی کافی نیست");
->>>>>>> a0200c7 (first commit)
+      const effectivePrice = Number(p.basePrice);
+      const error = option.error ?? (!Number.isFinite(effectivePrice) || effectivePrice <= 0 || !Number.isFinite(finalPrice) || finalPrice <= 0 ? "قیمت معتبر برای این محصول ثبت نشده است" : !tierFloorOk ? "قیمت پلکانی از بهای میانگین فعلی انبار کمتر است" : option.price < p.avgCost ? "قیمت فروش از بهای میانگین فعلی انبار کمتر است" : ok ? undefined : "موجودی انبار مرکزی کافی نیست");
       lines.push({ ...base, festivalPct: safePct, promotionKind: safePct ? base.promotionKind : null, allowBackorder: p.allowBackorder, variantTitle: option.title, maxQty: p.allowBackorder ? 100 : Math.min(100, Math.max(0, available)), unitPrice: option.price, lineTotal: option.price * it.qty, available, ok: ok && !error, tieredPricing: !!tier,
         error, alternatives: ok ? [] : await alternativesFor(tx, p.id, it.qty) });
     }

@@ -19,19 +19,11 @@ type Spec = { k: string; v: string; group?: string; hidden?: boolean; order?: nu
 type PurchaseOption = { name: string; type: "text" | "select" | "checkbox" | "radio"; required: boolean; values: { label: string; price: number; priceType: "fixed" | "percent" }[] };
 type ProductFaq = { question: string; answer: string };
 type Compat = { make: string; model: string; years: string };
-<<<<<<< HEAD
 type Variant = { id?: number; title: string; attrs: Record<string, string>; sku: string; price: number; compareAtPrice?: number; costPrice?: number; profitPercent?: number; discountType?: "none" | "percent" | "fixed"; discountValue?: number; rewardPoints: number; quantityPriceTiers: QuantityPriceTier[]; onHand: number; inventoryUnit: string; baseUnitAmount: number; isActive: boolean; isSellable: boolean; inquiryOnly?: boolean };
-type Opt = { name: string; values: string[] };
+type Opt = { name: string; values: string[]; colorCodes?: Record<string, string> };
 export type ProductInitial = Partial<{
   id: number; nameFa: string; nameEn: string | null; sku: string; partNumber: string; oemNumber: string | null; crossRefs: string[]; brand: string; manufacturer: string | null; source: string; externalSourceUrl: string | null; externalSourceId: string | null; avgCost: number;
   country: string | null; categoryId: number | null; authenticity: string; productType: string | null; certifiedOrganic: boolean; basePrice: number; compareAtPrice: number; shortDesc: string | null; description: string | null;
-=======
-type Variant = { id?: number; title: string; attrs: Record<string, string>; sku: string; price: number; compareAtPrice?: number; rewardPoints: number; quantityPriceTiers: QuantityPriceTier[]; onHand: number; inventoryUnit: string; baseUnitAmount: number; isActive: boolean; isSellable: boolean; inquiryOnly?: boolean };
-type Opt = { name: string; values: string[]; colorCodes?: Record<string, string> };
-export type ProductInitial = Partial<{
-  id: number; nameFa: string; nameEn: string | null; sku: string; partNumber: string; oemNumber: string | null; crossRefs: string[]; brand: string; manufacturer: string | null; source: string; externalSourceUrl: string | null; externalSourceId: string | null;
-  country: string | null; categoryId: number | null; authenticity: string; productType: string | null; basePrice: number; compareAtPrice: number; shortDesc: string | null; description: string | null;
->>>>>>> a0200c7 (first commit)
   technicalReview: string | null; specs: Spec[]; compatibility: Compat[]; organicInfo: { [k: string]: string | string[] | undefined; suitableFor?: string[] }; videoMediaId: number | null; weight: number | null; barcode: string | null; seoTitle: string | null; metaDesc: string | null; slug: string;
   color: string | null; sizes: string[]; material: string | null; sizeGuideText: string | null; sizeGuideMediaId: number | null;
   lowStockThreshold: number; allowBackorder: boolean; inquiryOnly: boolean; inventoryBaseUnit: string; imageIds: number[]; variants: Variant[]; quantityPriceTiers: QuantityPriceTier[]; options: Opt[]; purchaseOptions: PurchaseOption[]; relatedProductIds: number[]; crossSellProductIds: number[]; productFaqs: ProductFaq[]; deliveryEstimateEnabled: boolean; deliveryMinDays: number; deliveryMaxDays: number; seoKeywords: string[]; seoImageId: number | null;

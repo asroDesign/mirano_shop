@@ -1352,3 +1352,234 @@ export const inventoryDocuments = pgTable("inventory_documents", {
   receivedBy: integer("received_by"), receivedAt: timestamp("received_at", { withTimezone: true }),
   receiptHash: text("receipt_hash"), receiptNote: text("receipt_note"), createdAt: created(),
 }, (t) => [index("inventory_documents_created").on(t.createdAt), index("inventory_documents_invoice").on(t.invoiceNumber)]);
+
+
+// Tables added by the POS, catalog history, alert, and inquiry migrations.
+// Keep these definitions aligned with drizzle/*.sql; application modules import
+// them directly, and omitting them makes Next's static module analysis fail.
+export const posTerminals = pgTable("pos_terminals", {
+  id: serial("id").primaryKey(),
+  sellerId: integer("seller_id"),
+  name: text("name").notNull(),
+  bankName: text("bank_name"),
+  terminalCode: text("terminal_code"),
+  enabled: boolean("enabled").notNull().default(true),
+  createdAt: created(),
+  updatedAt: updated(),
+}, (t) => [index("pos_terminal_seller_enabled").on(t.sellerId, t.enabled)]);
+
+export const centralPosSales = pgTable("central_pos_sales", {
+  id: serial("id").primaryKey(),
+  number: text("number").notNull().unique(),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  createdBy: integer("created_by").notNull(),
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone").notNull(),
+  subtotal: money("subtotal"),
+  discount: money("discount"),
+  total: money("total"),
+  paymentMethod: text("payment_method").notNull(),
+  settlement: jsonb("settlement").$type<{ cash: number; card: number }>().notNull().default({ cash: 0, card: 0 }),
+  terminalId: integer("terminal_id"),
+  status: text("status").notNull().default("completed"),
+  rewardCode: text("reward_code"),
+  shippingProvince: text("shipping_province"),
+  shippingCity: text("shipping_city"),
+  shippingAddress: text("shipping_address"),
+  shippingPostalCode: text("shipping_postal_code"),
+  shippingCarrierId: integer("shipping_carrier_id"),
+  shippingCarrierName: text("shipping_carrier_name"),
+  shippingCost: money("shipping_cost"),
+  shippingFreightCollect: boolean("shipping_freight_collect").notNull().default(false),
+  shippingStatus: text("shipping_status").notNull().default("pending"),
+  shippingTrackingNumber: text("shipping_tracking_number"),
+  shippingShippedAt: timestamp("shipping_shipped_at", { withTimezone: true }),
+  shippingNotes: text("shipping_notes"),
+  createdAt: created(),
+}, (t) => [
+  index("central_pos_created").on(t.createdAt),
+  index("central_pos_shipping_queue").on(t.shippingStatus, t.createdAt),
+]);
+
+export const centralPosItems = pgTable("central_pos_items", {
+  id: serial("id").primaryKey(),
+  saleId: integer("sale_id").notNull(),
+  variantId: integer("variant_id").notNull(),
+  productId: integer("product_id").notNull(),
+  title: text("title").notNull(),
+  quantity: integer("quantity").notNull(),
+  unitPrice: money("unit_price"),
+  lineTotal: money("line_total"),
+  unitCost: money("unit_cost"),
+  createdAt: created(),
+}, (t) => [index("central_pos_items_sale").on(t.saleId)]);
+
+export const sellerPosSales = pgTable("seller_pos_sales", {
+  id: serial("id").primaryKey(),
+  number: text("number").notNull().unique(),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  sellerId: integer("seller_id").notNull(),
+  createdBy: integer("created_by").notNull(),
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone").notNull(),
+  subtotal: money("subtotal"),
+  discount: money("discount"),
+  total: money("total"),
+  paymentMethod: text("payment_method").notNull(),
+  settlement: jsonb("settlement").$type<{ cash: number; card: number }>().notNull().default({ cash: 0, card: 0 }),
+  terminalId: integer("terminal_id"),
+  status: text("status").notNull().default("completed"),
+  createdAt: created(),
+}, (t) => [index("seller_pos_seller_created").on(t.sellerId, t.createdAt)]);
+
+export const sellerPosItems = pgTable("seller_pos_items", {
+  id: serial("id").primaryKey(),
+  saleId: integer("sale_id").notNull(),
+  sellerId: integer("seller_id").notNull(),
+  offerId: integer("offer_id").notNull(),
+  productId: integer("product_id").notNull(),
+  title: text("title").notNull(),
+  quantity: integer("quantity").notNull(),
+  unitPrice: money("unit_price"),
+  lineTotal: money("line_total"),
+  unitCost: money("unit_cost"),
+  createdAt: created(),
+}, (t) => [index("seller_pos_items_sale").on(t.saleId), index("seller_pos_items_seller").on(t.sellerId)]);
+
+export const sellerOffers = pgTable("seller_offers", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull(),
+  sellerId: integer("seller_id").notNull(),
+  price: money("price"),
+  salePrice: bigint("sale_price", { mode: "number" }),
+  costPrice: money("cost_price"),
+  stock: integer("stock").notNull().default(0),
+  reserved: integer("reserved").notNull().default(0),
+  shippingCost: money("shipping_cost"),
+  prepDays: integer("prep_days").notNull().default(1),
+  shipCity: text("ship_city"),
+  shipProvince: text("ship_province"),
+  warranty: text("warranty"),
+  condition: text("condition").notNull().default("new"),
+  status: text("status").notNull().default("pending"),
+  isBuyBox: boolean("is_buy_box").notNull().default(false),
+  createdAt: created(),
+  updatedAt: updated(),
+}, (t) => [
+  uniqueIndex("offer_product_seller").on(t.productId, t.sellerId),
+  index("seller_offers_product_status_idx").on(t.productId, t.status, t.sellerId),
+]);
+
+export const stockMovements = pgTable("stock_movements", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull(),
+  variantId: integer("variant_id"),
+  offerId: integer("offer_id"),
+  warehouseId: integer("warehouse_id"),
+  type: text("type").notNull(),
+  qty: integer("qty").notNull(),
+  unitCost: money("unit_cost"),
+  refType: text("ref_type"),
+  refId: integer("ref_id"),
+  note: text("note"),
+  userId: integer("user_id"),
+  createdAt: created(),
+});
+
+export const productPriceHistory = pgTable("product_price_history", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull(),
+  scope: text("scope").notNull(),
+  variantId: integer("variant_id"),
+  sellerOfferId: integer("seller_offer_id"),
+  sellerId: integer("seller_id"),
+  price: money("price"),
+  referencePrice: money("reference_price"),
+  source: text("source").notNull(),
+  changedBy: integer("changed_by"),
+  createdAt: created(),
+}, (t) => [
+  index("product_price_history_product_created").on(t.productId, t.createdAt),
+  index("product_price_history_variant_created").on(t.variantId, t.createdAt),
+  index("product_price_history_offer_created").on(t.sellerOfferId, t.createdAt),
+]);
+
+export const productAlertVerifications = pgTable("product_alert_verifications", {
+  id: serial("id").primaryKey(),
+  phone: text("phone").notNull(),
+  productId: integer("product_id").notNull(),
+  variantId: integer("variant_id").notNull().default(0),
+  codeHash: text("code_hash").notNull(),
+  salt: text("salt").notNull(),
+  alertRestock: boolean("alert_restock").notNull().default(false),
+  alertPriceDrop: boolean("alert_price_drop").notNull().default(false),
+  attempts: integer("attempts").notNull().default(0),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  createdAt: created(),
+}, (t) => [index("product_alert_verifications_phone_created").on(t.phone, t.createdAt)]);
+
+export const productAlertSubscriptions = pgTable("product_alert_subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id"),
+  phone: text("phone").notNull(),
+  productId: integer("product_id").notNull(),
+  variantId: integer("variant_id").notNull().default(0),
+  alertRestock: boolean("alert_restock").notNull().default(false),
+  alertPriceDrop: boolean("alert_price_drop").notNull().default(false),
+  consentAt: timestamp("consent_at", { withTimezone: true }).notNull(),
+  token: text("token").notNull().unique(),
+  active: boolean("active").notNull().default(true),
+  createdAt: created(),
+  updatedAt: updated(),
+}, (t) => [
+  uniqueIndex("product_alert_subscription_identity").on(t.phone, t.productId, t.variantId),
+  index("product_alert_subscription_product_active").on(t.productId, t.active),
+]);
+
+export const productAlertEvents = pgTable("product_alert_events", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull(),
+  variantId: integer("variant_id").notNull().default(0),
+  eventType: text("event_type").notNull(),
+  oldPrice: bigint("old_price", { mode: "number" }),
+  newPrice: bigint("new_price", { mode: "number" }),
+  status: text("status").notNull().default("pending"),
+  createdAt: created(),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+}, (t) => [index("product_alert_events_pending").on(t.status, t.createdAt)]);
+
+export const productAlertDeliveries = pgTable("product_alert_deliveries", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").notNull().references(() => productAlertEvents.id, { onDelete: "cascade" }),
+  subscriptionId: integer("subscription_id").notNull().references(() => productAlertSubscriptions.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("pending"),
+  response: text("response"),
+  createdAt: created(),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+}, (t) => [
+  uniqueIndex("product_alert_delivery_once").on(t.eventId, t.subscriptionId),
+  index("product_alert_deliveries_subscription").on(t.subscriptionId, t.createdAt),
+]);
+
+export const productInquiries = pgTable("product_inquiries", {
+  id: serial("id").primaryKey(),
+  number: text("number").notNull().unique(),
+  productId: integer("product_id").notNull().references(() => products.id),
+  variantId: integer("variant_id").references(() => productVariants.id),
+  userId: integer("user_id").references(() => users.id),
+  customerName: text("customer_name").notNull(),
+  phone: text("phone").notNull(),
+  message: text("message"),
+  consentAt: timestamp("consent_at", { withTimezone: true }).notNull(),
+  status: text("status").notNull().default("new"),
+  assignedTo: integer("assigned_to").references(() => users.id),
+  internalNote: text("internal_note"),
+  convertedOrderId: integer("converted_order_id").references(() => orders.id),
+  createdAt: created(),
+  updatedAt: updated(),
+}, (t) => [
+  index("product_inquiries_status_created").on(t.status, t.createdAt),
+  index("product_inquiries_product_created").on(t.productId, t.createdAt),
+  index("product_inquiries_phone_created").on(t.phone, t.createdAt),
+]);

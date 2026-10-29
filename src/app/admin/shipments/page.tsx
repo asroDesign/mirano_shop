@@ -60,13 +60,8 @@ export default async function AdminShipments({ searchParams }: { searchParams: P
             <Td>#{faNum(sh.id)}<div className="text-[11px] text-slate-400">{jdate(sh.createdAt)}</div></Td>
             <Td><Link href={`/orders/${o.id}`} className="font-bold text-emerald-700" dir="ltr">{o.number}</Link></Td>
             <Td>{shop ?? "انبار مرکزی"}</Td>
-<<<<<<< HEAD
-            <Td className="text-xs">{o.address.city}<div className="text-slate-400">{o.address.fullName}</div></Td>
-            <Td className="text-xs">{faNum(actualWeights.get(sh.id) ?? sh.weight)} گرم<div>{toman(sh.shippingCost)}</div></Td>
-=======
             <Td className="text-xs">{o.address.province ? `${o.address.province}، ` : ""}{o.address.city}<div className="text-slate-400">{o.address.fullName}</div></Td>
-            <Td className="text-xs">{faNum(sh.weight)} گرم<div>{toman(sh.shippingCost)}</div></Td>
->>>>>>> a0200c7 (first commit)
+            <Td className="text-xs">{faNum(actualWeights.get(sh.id) ?? sh.weight)} گرم<div>{toman(sh.shippingCost)}</div></Td>
             <Td><StatusBadge status={sh.status} map={SHIPMENT_STATUS} /></Td>
             <Td className="text-xs">{sh.carrier ?? "—"}<div dir="ltr" className="font-mono">{sh.trackingNumber ?? ""}</div>{sh.shippedAt && <div className="text-slate-400">ارسال: {jdate(sh.shippedAt)}</div>}{sh.notes && <div className="max-w-40 truncate text-slate-400" title={sh.notes}>{sh.notes}</div>}</Td>
             <Td><div className="flex flex-col gap-1.5">
